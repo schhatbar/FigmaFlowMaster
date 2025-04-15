@@ -31,6 +31,113 @@ interface ParsedSvg {
 }
 
 /**
+ * Generates a random ID for elements without IDs
+ */
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 10);
+}
+
+/**
+ * Finds a node at the given coordinates
+ */
+function findNodeAtPoint(
+  elements: SvgElement[], 
+  x: number, 
+  y: number, 
+  excludeId: string
+): SvgElement | null {
+  const tolerance = 5;  // Allow some margin for connection points
+  
+  for (const element of elements) {
+    // Skip lines and the element itself
+    if (element.id === excludeId || element.type === 'line') {
+      continue;
+    }
+    
+    if (element.type === 'circle') {
+      // For circles, check if point is within radius
+      const centerX = element.x + element.width / 2;
+      const centerY = element.y + element.height / 2;
+      const radius = element.width / 2;
+      
+      const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+      if (distance <= radius + tolerance) {
+        return element;
+      }
+    } else {
+      // For rectangles and other elements, check if point is within bounds
+      if (
+        x >= element.x - tolerance &&
+        x <= element.x + element.width + tolerance &&
+        y >= element.y - tolerance &&
+        y <= element.y + element.height + tolerance
+      ) {
+        return element;
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Checks if a point is inside or very close to an element
+ */
+function isPointInElement(point: [number, number], element: SvgElement): boolean {
+  const [x, y] = point;
+  const { x: elX, y: elY, width: elWidth, height: elHeight } = element;
+  
+  // Add a small tolerance for point detection
+  const tolerance = 5;
+  
+  if (element.type === 'circle') {
+    // For circles, check if point is within radius
+    const centerX = elX + elWidth / 2;
+    const centerY = elY + elHeight / 2;
+    const radius = elWidth / 2;
+    
+    const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+    return distance <= radius + tolerance;
+  } else {
+    // For other shapes, check if point is within bounding box
+    return (
+      x >= elX - tolerance &&
+      x <= elX + elWidth + tolerance &&
+      y >= elY - tolerance &&
+      y <= elY + elHeight + tolerance
+    );
+  }
+}
+
+/**
+ * Calculates bounding box for a group of elements
+ */
+function calculateGroupBounds(elements: SvgElement[]): { x: number, y: number, width: number, height: number } {
+  if (elements.length === 0) {
+    return { x: 0, y: 0, width: 0, height: 0 };
+  }
+  
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  
+  for (const el of elements) {
+    minX = Math.min(minX, el.x);
+    minY = Math.min(minY, el.y);
+    maxX = Math.max(maxX, el.x + el.width);
+    maxY = Math.max(maxY, el.y + el.height);
+  }
+  
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY
+  };
+}
+
+/**
  * Parses an SVG string and extracts flowchart elements and their relationships
  * @param svgContent The SVG file content as a string
  * @returns A parsed representation of the SVG
