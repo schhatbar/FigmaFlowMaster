@@ -1,40 +1,44 @@
-import { svgToFigmaFlowchart } from './src/figmaConverter';
-import { parseSvg } from './src/svgParser';
-import { handleError } from './src/errorHandler';
-
+// Show UI
 figma.showUI(__html__, { width: 400, height: 500 });
 
+// Handle messages from the UI
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'convert-svg') {
     try {
-      // Parse the SVG content
-      const parsedSvg = parseSvg(msg.svgContent);
+      // Create a simple demonstration rectangle
+      const rect = figma.createRectangle();
+      rect.x = 100;
+      rect.y = 100;
+      rect.resize(200, 100);
+      rect.fills = [{type: 'SOLID', color: {r: 1, g: 0, b: 0}}];
+      rect.name = "SVG Conversion Test";
       
-      // Create a new page for the flowchart
-      const page = figma.createPage();
-      page.name = `Flowchart: ${msg.fileName.replace(/\.svg$/, '')}`;
-      figma.currentPage = page;
-
-      // Convert SVG to Figma flowchart
-      await svgToFigmaFlowchart(parsedSvg);
+      // Create a text node for demonstration
+      const text = figma.createText();
+      await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+      text.x = 100;
+      text.y = 220;
+      text.resize(200, 50);
+      text.characters = "Test from SVG";
       
-      // Notify UI that conversion is complete
+      // Select the created objects
+      figma.currentPage.selection = [rect, text];
+      figma.viewport.scrollAndZoomIntoView([rect, text]);
+      
+      // Notify UI that the test was successful
       figma.ui.postMessage({
         type: 'conversion-complete'
       });
       
-      figma.notify('SVG successfully converted to flowchart!');
+      figma.notify('Test shapes created successfully!');
     } catch (error) {
-      console.error(error);
-      
-      // Handle the error and notify UI
-      const errorMsg = handleError(error);
+      // Simple error notification
       figma.ui.postMessage({
         type: 'error',
-        message: errorMsg
+        message: 'An error occurred during the test.'
       });
       
-      figma.notify('Error converting SVG to flowchart', { error: true });
+      figma.notify('Error during test', { error: true });
     }
   }
 };
