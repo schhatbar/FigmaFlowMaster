@@ -6,25 +6,46 @@ import { handleError } from './errorHandler';
  */
 export async function svgToFigmaFlowchart(parsedSvg: any): Promise<void> {
   try {
+    console.log('Starting SVG to Figma conversion with data:', JSON.stringify(parsedSvg).substring(0, 200) + '...');
+    
+    // Check if parsedSvg has the expected structure
+    if (!parsedSvg || !parsedSvg.elements || !Array.isArray(parsedSvg.elements)) {
+      throw new Error('Invalid SVG data structure. Missing elements array.');
+    }
+    
     // Load fonts first to ensure text elements render properly
+    console.log('Loading fonts...');
     await figma.loadFontAsync({ family: "Inter", style: "Regular" });
     await figma.loadFontAsync({ family: "Inter", style: "Medium" });
+    console.log('Fonts loaded successfully');
     
     // Calculate scale factors
+    console.log('Calculating scale factors...');
     const scale = calculateScale(parsedSvg.viewBox);
+    console.log('Scale factors:', scale);
     
     // Create nodes
+    console.log('Creating Figma nodes from', parsedSvg.elements.length, 'SVG elements...');
     const figmaNodes = await createFigmaNodes(parsedSvg.elements, scale);
+    console.log('Created', Object.keys(figmaNodes).length, 'Figma nodes');
     
     // Create connections between nodes
+    console.log('Creating connections...');
     await createConnections(figmaNodes, parsedSvg.elements);
+    console.log('Connections created');
     
     // Select all created nodes
-    figma.currentPage.selection = Object.values(figmaNodes);
+    const nodeValues = Object.values(figmaNodes);
+    console.log('Selecting', nodeValues.length, 'nodes');
+    if (nodeValues.length > 0) {
+      figma.currentPage.selection = nodeValues;
+      
+      // Zoom to fit the created nodes
+      console.log('Zooming to fit');
+      figma.viewport.scrollAndZoomIntoView(nodeValues);
+    }
     
-    // Zoom to fit the created nodes
-    figma.viewport.scrollAndZoomIntoView(Object.values(figmaNodes));
-    
+    console.log('SVG to Figma conversion completed successfully');
   } catch (error: unknown) {
     console.error('Error converting to Figma flowchart:', error);
     if (error instanceof Error) {
@@ -281,60 +302,108 @@ async function createConnections(
   figmaNodes: { [id: string]: SceneNode },
   elements: any[]
 ): Promise<void> {
-  // Create a map for elements
-  const elementsMap: { [id: string]: any } = {};
-  elements.forEach(el => {
-    elementsMap[el.id] = el;
-  });
-  
-  // Process each element's connections
-  for (const element of elements) {
-    if (!element.connections || element.connections.length === 0) continue;
+  try {
+    console.log('Beginning to create connections between nodes');
     
-    for (const connection of element.connections) {
-      try {
-        const fromNode = figmaNodes[connection.fromId];
-        const toNode = figmaNodes[connection.toId];
-        
-        if (!fromNode || !toNode) continue;
-        
-        // Create a connector
-        const connector = figma.createConnector();
-        connector.name = `Connector: ${connection.fromId} → ${connection.toId}`;
-        
-        // Set connector endpoints
-        connector.connectorStart = {
-          endpointNodeId: fromNode.id,
-          magnet: 'AUTO'
-        };
-        
-        connector.connectorEnd = {
-          endpointNodeId: toNode.id,
-          magnet: 'AUTO'
-        };
-        
-        // Set stroke properties
-        connector.strokes = [{
-          type: 'SOLID',
-          color: { r: 0, g: 0, b: 0 },
-          opacity: 1
-        }];
-        
-        connector.strokeWeight = 1;
-        
-        // Advanced: If we have specific points for the connector path
-        if (connection.points && connection.points.length > 0) {
-          // This is just a placeholder - actual manipulation of connector paths
-          // would require more complex interactions with the Figma API
-          console.log('Connection has specific points:', connection.points);
+    // Verify figmaNodes exists and is an object
+    if (!figmaNodes || typeof figmaNodes !== 'object') {
+      console.error('Invalid figmaNodes parameter:', figmaNodes);
+      return;
+    }
+    
+    // Verify elements array exists
+    if (!elements || !Array.isArray(elements)) {
+      console.error('Invalid elements parameter:', elements);
+      return;
+    }
+    
+    // Create a map for elements
+    const elementsMap: { [id: string]: any } = {};
+    elements.forEach(el => {
+      if (el && el.id) {
+        elementsMap[el.id] = el;
+      }
+    });
+    
+    console.log(`Created elements map with ${Object.keys(elementsMap).length} entries`);
+    
+    // Process each element's connections
+    let connectionCount = 0;
+    
+    for (const element of elements) {
+      // Skip if element doesn't have connections
+      if (!element || !element.connections || !Array.isArray(element.connections) || element.connections.length === 0) {
+        continue;
+      }
+      
+      console.log(`Processing ${element.connections.length} connections for element ${element.id}`);
+      
+      for (const connection of element.connections) {
+        try {
+          // Validate connection object
+          if (!connection || !connection.fromId || !connection.toId) {
+            console.warn('Invalid connection object:', connection);
+            continue;
+          }
           
-          // As a simple approximation, we could add rounded corners
-          // Note: strokeCap property is not available on ConnectorNode
+          // Get nodes for connection
+          const fromNode = figmaNodes[connection.fromId];
+          const toNode = figmaNodes[connection.toId];
+          
+          if (!fromNode) {
+            console.warn(`From node with ID ${connection.fromId} not found`);
+            continue;
+          }
+          
+          if (!toNode) {
+            console.warn(`To node with ID ${connection.toId} not found`);
+            continue;
+          }
+          
+          console.log(`Creating connector from ${fromNode.name} to ${toNode.name}`);
+          
+          // Create a connector
+          const connector = figma.createConnector();
+          connector.name = `Connector: ${connection.fromId} → ${connection.toId}`;
+          
+          // Set connector endpoints
+          connector.connectorStart = {
+            endpointNodeId: fromNode.id,
+            magnet: 'AUTO'
+          };
+          
+          connector.connectorEnd = {
+            endpointNodeId: toNode.id,
+            magnet: 'AUTO'
+          };
+          
+          // Set stroke properties
+          connector.strokes = [{
+            type: 'SOLID',
+            color: { r: 0, g: 0, b: 0 },
+            opacity: 1
+          }];
+          
+          connector.strokeWeight = 1;
+          
+          // Advanced: If we have specific points for the connector path
+          if (connection.points && Array.isArray(connection.points) && connection.points.length > 0) {
+            console.log('Connection has specific points:', connection.points);
+            // This is just a placeholder - actual manipulation of connector paths
+            // would require more complex interactions with the Figma API
+          }
+          
+          connectionCount++;
+        } catch (error) {
+          console.error(`Error creating connection from ${connection.fromId} to ${connection.toId}:`, error);
+          // Continue with other connections
         }
-      } catch (error) {
-        console.warn(`Error creating connection from ${connection.fromId} to ${connection.toId}:`, error);
-        // Continue with other connections
       }
     }
+    
+    console.log(`Successfully created ${connectionCount} connections`);
+  } catch (error) {
+    console.error('Error in createConnections:', error);
+    // Don't rethrow the error to prevent the whole conversion process from failing
   }
 }
