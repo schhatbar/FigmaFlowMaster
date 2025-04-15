@@ -27,7 +27,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm install && npm install -D webpack webpack-cli typescript ts-loader html-loader @figma/plugin-typings && npx webpack --watch"
+args = "npm install && npx webpack"
 
 [deployment]
-run = ["sh", "-c", "npm install && npm install -D webpack webpack-cli typescript ts-loader html-loader @figma/plugin-typings && npx webpack --watch"]
+run = ["sh", "-c", "npm install && npx webpack"]

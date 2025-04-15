@@ -12,7 +12,7 @@ module.exports = {
   
   // Output configuration
   output: {
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, './'),
     filename: '[name].js'
   },
   
