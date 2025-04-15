@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVG to Flowchart Converter</title>
+  <style>
+    body {
+      font-family: Inter, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    
+    h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .upload-area {
+      border: 1px dashed #AAAAAA;
+      border-radius: 4px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .upload-area:hover {
+      background-color: #F5F5F5;
+    }
+    
+    .upload-area p {
+      margin: 8px 0 0;
+      color: #888888;
+      font-size: 12px;
+    }
+    
+    .upload-button {
+      background-color: #18A0FB;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .upload-button:hover {
+      background-color: #0D8EE4;
+    }
+    
+    .upload-button:active {
+      background-color: #0C7ECF;
+    }
+    
+    .file-info {
+      margin-top: 12px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .file-name {
+      font-weight: 500;
+    }
+    
+    .convert-button {
+      background-color: #18A0FB;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-top: 16px;
+    }
+    
+    .convert-button:hover {
+      background-color: #0D8EE4;
+    }
+    
+    .convert-button:active {
+      background-color: #0C7ECF;
+    }
+    
+    .convert-button:disabled {
+      background-color: #CCCCCC;
+      cursor: not-allowed;
+    }
+    
+    .error-message {
+      color: #F24822;
+      font-size: 14px;
+      margin-top: 16px;
+      display: none;
+    }
+    
+    .progress {
+      display: none;
+      margin-top: 16px;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background-color: #EEEEEE;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+      height: 100%;
+      background-color: #18A0FB;
+      width: 0;
+      transition: width 0.3s;
+    }
+    
+    .progress-text {
+      font-size: 12px;
+      color: #888888;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>SVG to Flowchart Converter</h2>
+    
+    <div id="uploadArea" class="upload-area">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 5V19M12 5L18 11M12 5L6 11" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p>Click to upload an SVG file or drag and drop</p>
+    </div>
+    
+    <input type="file" id="fileInput" accept=".svg" style="display: none">
+    
+    <div id="fileInfo" class="file-info">
+      <span>Selected file: </span>
+      <span id="fileName" class="file-name"></span>
+    </div>
+    
+    <button id="convertButton" class="convert-button" disabled>Convert to Flowchart</button>
+    
+    <div id="progress" class="progress">
+      <div class="progress-bar">
+        <div id="progressBarFill" class="progress-bar-fill"></div>
+      </div>
+      <div id="progressText" class="progress-text">Processing SVG...</div>
+    </div>
+    
+    <div id="errorMessage" class="error-message"></div>
+  </div>
+
+  <script>
+    // Variables to store SVG data
+    let svgContent = null;
+    let fileName = '';
+    
+    // DOM Elements
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileNameElement = document.getElementById('fileName');
+    const convertButton = document.getElementById('convertButton');
+    const errorMessage = document.getElementById('errorMessage');
+    const progress = document.getElementById('progress');
+    const progressBarFill = document.getElementById('progressBarFill');
+    const progressText = document.getElementById('progressText');
+    
+    // Event listeners
+    uploadArea.addEventListener('click', () => {
+      fileInput.click();
+    });
+    
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.style.backgroundColor = '#F5F5F5';
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.style.backgroundColor = '';
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.style.backgroundColor = '';
+      
+      if (e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        handleFile(e.target.files[0]);
+      }
+    });
+    
+    convertButton.addEventListener('click', () => {
+      if (!svgContent) return;
+      
+      // Show progress
+      progress.style.display = 'block';
+      convertButton.disabled = true;
+      errorMessage.style.display = 'none';
+      
+      // Simulate progress (in a real implementation, this would be based on actual processing)
+      let width = 0;
+      const interval = setInterval(() => {
+        width += 5;
+        progressBarFill.style.width = `${width}%`;
+        
+        if (width >= 90) {
+          clearInterval(interval);
+        }
+      }, 100);
+      
+      // Send SVG to the plugin code
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'convert-svg',
+          svgContent,
+          fileName
+        } 
+      }, '*');
+    });
+    
+    // Handle messages from the plugin code
+    window.onmessage = (event) => {
+      const message = event.data.pluginMessage;
+      
+      if (!message) return;
+      
+      if (message.type === 'conversion-complete') {
+        // Complete the progress bar
+        progressBarFill.style.width = '100%';
+        progressText.textContent = 'Conversion complete!';
+        
+        // Reset after 2 seconds
+        setTimeout(() => {
+          progress.style.display = 'none';
+          progressBarFill.style.width = '0';
+          progressText.textContent = 'Processing SVG...';
+          convertButton.disabled = false;
+        }, 2000);
+      }
+      
+      if (message.type === 'error') {
+        // Show error
+        errorMessage.textContent = message.message;
+        errorMessage.style.display = 'block';
+        progress.style.display = 'none';
+        convertButton.disabled = false;
+      }
+    };
+    
+    // Function to handle file selection
+    function handleFile(file) {
+      // Check if the file is an SVG
+      if (!file.name.toLowerCase().endsWith('.svg')) {
+        errorMessage.textContent = 'Please select an SVG file.';
+        errorMessage.style.display = 'block';
+        return;
+      }
+      
+      // Reset error message
+      errorMessage.style.display = 'none';
+      
+      // Read the file
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        svgContent = e.target.result;
+        fileName = file.name;
+        
+        // Update UI
+        fileNameElement.textContent = fileName;
+        fileInfo.style.display = 'block';
+        convertButton.disabled = false;
+      };
+      
+      reader.onerror = () => {
+        errorMessage.textContent = 'Error reading the file. Please try again.';
+        errorMessage.style.display = 'block';
+      };
+      
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>

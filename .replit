@@ -1,0 +1,33 @@
+modules = ["nodejs-20"]
+
+[nix]
+channel = "stable-24_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Figma Plugin Build"
+
+[[workflows.workflow]]
+name = "Figma Plugin Build"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install && npm install -D webpack webpack-cli typescript ts-loader html-loader @figma/plugin-typings && npx webpack --watch"
+
+[deployment]
+run = ["sh", "-c", "npm install && npm install -D webpack webpack-cli typescript ts-loader html-loader @figma/plugin-typings && npx webpack --watch"]

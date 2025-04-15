@@ -1,0 +1,14 @@
+{
+  "name": "SVG to Flowchart Converter",
+  "id": "svg-to-flowchart-converter",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "menu": [
+    {
+      "name": "Convert SVG to Flowchart",
+      "command": "convert"
+    }
+  ]
+}
