@@ -6,48 +6,35 @@ import { handleError } from './errorHandler';
  */
 export async function svgToFigmaFlowchart(parsedSvg: any): Promise<void> {
   try {
-    console.log('Starting SVG to Figma conversion with data:', JSON.stringify(parsedSvg).substring(0, 200) + '...');
-    
     // Check if parsedSvg has the expected structure
     if (!parsedSvg || !parsedSvg.elements || !Array.isArray(parsedSvg.elements)) {
       throw new Error('Invalid SVG data structure. Missing elements array.');
     }
     
     // Load fonts first to ensure text elements render properly
-    console.log('Loading fonts...');
     await figma.loadFontAsync({ family: "Inter", style: "Regular" });
     await figma.loadFontAsync({ family: "Inter", style: "Medium" });
-    console.log('Fonts loaded successfully');
     
     // Calculate scale factors
-    console.log('Calculating scale factors...');
     const scale = calculateScale(parsedSvg.viewBox);
-    console.log('Scale factors:', scale);
     
     // Create nodes
-    console.log('Creating Figma nodes from', parsedSvg.elements.length, 'SVG elements...');
     const figmaNodes = await createFigmaNodes(parsedSvg.elements, scale);
-    console.log('Created', Object.keys(figmaNodes).length, 'Figma nodes');
     
     // Create connections between nodes
-    console.log('Creating connections...');
     await createConnections(figmaNodes, parsedSvg.elements);
-    console.log('Connections created');
     
     // Select all created nodes
     const nodeValues = Object.values(figmaNodes);
-    console.log('Selecting', nodeValues.length, 'nodes');
     if (nodeValues.length > 0) {
       figma.currentPage.selection = nodeValues;
       
       // Zoom to fit the created nodes
-      console.log('Zooming to fit');
       figma.viewport.scrollAndZoomIntoView(nodeValues);
     }
     
-    console.log('SVG to Figma conversion completed successfully');
+    figma.notify(`Converted ${nodeValues.length} elements from SVG to Figma flowchart`);
   } catch (error: unknown) {
-    console.error('Error converting to Figma flowchart:', error);
     if (error instanceof Error) {
       throw new Error(`Error converting to Figma flowchart: ${error.message}`);
     } else {
@@ -85,8 +72,7 @@ async function createFigmaNodes(
         figmaNodes[element.id] = node;
       }
     } catch (error) {
-      console.warn(`Error creating node for element ${element.id}:`, error);
-      // Continue with other elements
+      // Continue with other elements even if this one fails
     }
   }
   
@@ -213,7 +199,7 @@ async function createFigmaNode(element: any, scale: { x: number, y: number }): P
           opacity: 1
         }];
       } catch (error) {
-        console.warn(`Could not apply fill for node ${node.name}:`, error);
+        // Continue even if fill cannot be applied
       }
     }
     
@@ -231,7 +217,7 @@ async function createFigmaNode(element: any, scale: { x: number, y: number }): P
           node.strokeWeight = element.strokeWidth;
         }
       } catch (error) {
-        console.warn(`Could not apply stroke for node ${node.name}:`, error);
+        // Continue even if stroke cannot be applied
       }
     }
   }
@@ -290,7 +276,7 @@ function parseColor(colorStr: string): { r: number, g: number, b: number } {
     
     return defaultColor;
   } catch (error) {
-    console.warn('Error parsing color:', error);
+    // Return default color if parsing fails
     return defaultColor;
   }
 }
@@ -303,17 +289,13 @@ async function createConnections(
   elements: any[]
 ): Promise<void> {
   try {
-    console.log('Beginning to create connections between nodes');
-    
     // Verify figmaNodes exists and is an object
     if (!figmaNodes || typeof figmaNodes !== 'object') {
-      console.error('Invalid figmaNodes parameter:', figmaNodes);
       return;
     }
     
     // Verify elements array exists
     if (!elements || !Array.isArray(elements)) {
-      console.error('Invalid elements parameter:', elements);
       return;
     }
     
@@ -325,8 +307,6 @@ async function createConnections(
       }
     });
     
-    console.log(`Created elements map with ${Object.keys(elementsMap).length} entries`);
-    
     // Process each element's connections
     let connectionCount = 0;
     
@@ -336,13 +316,10 @@ async function createConnections(
         continue;
       }
       
-      console.log(`Processing ${element.connections.length} connections for element ${element.id}`);
-      
       for (const connection of element.connections) {
         try {
           // Validate connection object
           if (!connection || !connection.fromId || !connection.toId) {
-            console.warn('Invalid connection object:', connection);
             continue;
           }
           
@@ -350,17 +327,9 @@ async function createConnections(
           const fromNode = figmaNodes[connection.fromId];
           const toNode = figmaNodes[connection.toId];
           
-          if (!fromNode) {
-            console.warn(`From node with ID ${connection.fromId} not found`);
+          if (!fromNode || !toNode) {
             continue;
           }
-          
-          if (!toNode) {
-            console.warn(`To node with ID ${connection.toId} not found`);
-            continue;
-          }
-          
-          console.log(`Creating connector from ${fromNode.name} to ${toNode.name}`);
           
           // Create a connector
           const connector = figma.createConnector();
@@ -386,24 +355,13 @@ async function createConnections(
           
           connector.strokeWeight = 1;
           
-          // Advanced: If we have specific points for the connector path
-          if (connection.points && Array.isArray(connection.points) && connection.points.length > 0) {
-            console.log('Connection has specific points:', connection.points);
-            // This is just a placeholder - actual manipulation of connector paths
-            // would require more complex interactions with the Figma API
-          }
-          
           connectionCount++;
         } catch (error) {
-          console.error(`Error creating connection from ${connection.fromId} to ${connection.toId}:`, error);
           // Continue with other connections
         }
       }
     }
-    
-    console.log(`Successfully created ${connectionCount} connections`);
   } catch (error) {
-    console.error('Error in createConnections:', error);
     // Don't rethrow the error to prevent the whole conversion process from failing
   }
 }
